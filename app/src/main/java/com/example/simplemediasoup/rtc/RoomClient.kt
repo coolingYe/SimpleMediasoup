@@ -1,11 +1,11 @@
-package com.example.simplemediasoup
+package com.example.simplemediasoup.rtc
 
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import androidx.annotation.WorkerThread
-import com.example.simplemediasoup.rtc.PeerConnectionUtils
+import com.example.simplemediasoup.RoomPresenter
 import com.example.simplemediasoup.service.WebSocketTransport
 import com.example.simplemediasoup.utils.DeviceInfo
 import com.example.simplemediasoup.utils.JsonUtils.jsonPut
@@ -23,9 +23,10 @@ import java.nio.ByteBuffer
 
 class RoomClient(
     val context: Context,
+    private val persenter: RoomPresenter,
     roomId: String,
     peerId: String,
-    val displayName: String = "Dio",
+    private val displayName: String = "Dio",
     forceH264: Boolean,
     forceVP9: Boolean
 ) {
@@ -49,6 +50,13 @@ class RoomClient(
 
     private val mCompositeDisposable = CompositeDisposable()
 
+    enum class ConnectionState {
+        WAITING,
+        CONNECTING,
+        CONNECTED,
+        CLOSED,
+    }
+
     init {
 
         mProtooUrl = UrlFactory().getProtooUrl(roomId, peerId, forceH264, forceVP9)
@@ -65,7 +73,8 @@ class RoomClient(
         Logger.d(TAG,"join()" + this.mProtooUrl)
         mWorkHandler.post {
             val transport = WebSocketTransport(mProtooUrl!!)
-            mProtoo = Protoo(transport, peerListener)
+            mProtoo =
+                Protoo(transport, peerListener)
         }
     }
 
@@ -252,7 +261,7 @@ class RoomClient(
                 var i = 0
                 while (peers != null && i < peers.length()) {
                     val peer: JSONObject = peers.getJSONObject(i)
-
+                    persenter.addPeer(peer.optString("id"), peer)
                     i++
                 }
             }

@@ -1,4 +1,4 @@
-package com.example.simplemediasoup
+package com.example.simplemediasoup.rtc
 
 import java.util.*
 

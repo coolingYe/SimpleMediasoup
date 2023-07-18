@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">SimpleMediasoup</string>
+    <string name="meeting">Meeting</string>
+    <string name="end">End</string>
+    <string name="mute">Mute</string>
+    <string name="stop_video">Stop Video</string>
+    <string name="share_content">Share Content</string>
+    <string name="participants">Participants</string>
+    <string name="more">More</string>
 </resources>
