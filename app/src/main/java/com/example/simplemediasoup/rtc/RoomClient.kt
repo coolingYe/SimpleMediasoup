@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import androidx.annotation.WorkerThread
-import com.example.simplemediasoup.RoomPresenter
+import com.example.simplemediasoup.RoomStore
 import com.example.simplemediasoup.service.WebSocketTransport
 import com.example.simplemediasoup.utils.DeviceInfo
 import com.example.simplemediasoup.utils.JsonUtils.jsonPut
@@ -18,15 +18,17 @@ import org.mediasoup.droid.*
 import org.protoojs.droid.Message
 import org.protoojs.droid.Peer
 import org.protoojs.droid.ProtooException
+import org.webrtc.AudioTrack
 import org.webrtc.DataChannel
+import org.webrtc.VideoTrack
 import java.nio.ByteBuffer
 
 class RoomClient(
-    val context: Context,
-    private val persenter: RoomPresenter,
-    roomId: String,
-    peerId: String,
-    private val displayName: String = "Dio",
+    private val mContext: Context,
+    private val mStore: RoomStore,
+    mRoomId: String,
+    private val mPeerId: String,
+    private val mDisplayName: String = "Dio",
     forceH264: Boolean,
     forceVP9: Boolean
 ) {
@@ -39,14 +41,19 @@ class RoomClient(
 
     private var mClosed = false
 
-    private var mProtooUrl: String?=null
+    private var mProtooUrl: String? = null
     private var mProtoo: Protoo? = null
-    private var mMediasoupDevice: Device? = null
+    private var mMediasoupDevice: Device = Device()
 
     private var mSendTransport: SendTransport? = null
     private var mRecvTransport: RecvTransport? = null
 
     private var mChatDataProducer: DataProducer? = null
+    private var mVideoProducer: Producer? = null
+    private var mAudioProducer: Producer? = null
+
+    private var mLocalVideoTrack: VideoTrack? = null
+    private var mLocalAudioTrack: AudioTrack? = null
 
     private val mCompositeDisposable = CompositeDisposable()
 
@@ -59,7 +66,7 @@ class RoomClient(
 
     init {
 
-        mProtooUrl = UrlFactory().getProtooUrl(roomId, peerId, forceH264, forceVP9)
+        mProtooUrl = UrlFactory().getProtooUrl(mRoomId, mPeerId, forceH264, forceVP9)
 
         // init worker handler.
         val handlerThread = HandlerThread("worker")
@@ -70,7 +77,7 @@ class RoomClient(
     }
 
     fun join() {
-        Logger.d(TAG,"join()" + this.mProtooUrl)
+        Logger.d(TAG, "join()" + this.mProtooUrl)
         mWorkHandler.post {
             val transport = WebSocketTransport(mProtooUrl!!)
             mProtoo =
@@ -91,9 +98,10 @@ class RoomClient(
         override fun onRequest(request: Message.Request, handler: Peer.ServerRequestHandler) {
             mWorkHandler.post {
                 try {
-                    when(request.method) {
+                    when (request.method) {
                         "newConsumer" -> {
-
+                            Log.d(this, "newConsumer")
+                            onNewConsumer(request, handler)
                         }
                         "newDataConsumer" -> {
                             Log.d(this, "newDataConsumer")
@@ -110,7 +118,7 @@ class RoomClient(
         }
 
         override fun onNotification(notification: Message.Notification) {
-//            Logger.d(TAG, "onNotification() " + notification.method + ", " + notification.data.toString())
+            Logger.d(TAG, "onNotification() " + notification.method + ", " + notification.data.toString())
         }
 
         override fun onDisconnected() {
@@ -120,28 +128,45 @@ class RoomClient(
         }
 
         override fun onClose() {
-            if (mClosed) {
-                return
-            }
+            if (mClosed) return
             mWorkHandler.post {
-                if (mClosed) {
-                    return@post
-                }
+                if (mClosed) return@post
                 close()
             }
         }
 
     }
 
+    private fun onNewConsumer(request: Message.Request, handler: Peer.ServerRequestHandler) {
+        try {
+            val data = request.data
+            val peerId = data.optString("peerId")
+            val producerId = data.optString("producerId")
+            val id = data.optString("id")
+            val kind = data.optString("kind")
+            val rtpParameters = data.optString("rtpParameters")
+            val type = data.optString("type")
+            val appData = data.optString("appData")
+            val producerPaused = data.optBoolean("producerPaused")
+
+            val consumer = mRecvTransport?.consume(null, id, producerId, kind, rtpParameters, appData)
+
+            mStore.addConsumer(peerId, type, consumer!!, producerPaused)
+            handler.accept()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun onNewDataConsumer(request: Message.Request, handler: Peer.ServerRequestHandler) {
         try {
-
             val data = request.data
             val peerId = data.optString("peerId")
             val dataProducerId = data.optString("dataProducerId")
             val id = data.optString("id")
             val sctpStreamParameters = data.optJSONObject("sctpStreamParameters")
-            val streamId = sctpStreamParameters?.optLong("streamId")
+            val streamId = sctpStreamParameters.optLong("streamId")
             val label = data.optString("label")
             val protocol = data.optString("protocol")
             val appData = data.optString("appData")
@@ -154,33 +179,39 @@ class RoomClient(
                 }
 
                 override fun OnClosing(dataConsumer: DataConsumer?) {
-                    TODO("Not yet implemented")
+
                 }
 
                 override fun OnClose(dataConsumer: DataConsumer?) {
-                    TODO("Not yet implemented")
+
                 }
 
-                override fun OnMessage(dataConsumer: DataConsumer?, buffer: DataChannel.Buffer?) {
+                override fun OnMessage(dataConsumer: DataConsumer, buffer: DataChannel.Buffer) {
                     try {
-//                        val sctp = JSONObject(dataConsumer!!.sctpStreamParameters)
-//                        Logger.w(TAG, "DataConsumer \"message\" event [streamId" + sctp.optInt("streamId") + "]")
-//                        val data = ByteArray(buffer!!.data.remaining())
-//                        buffer.data.get(data)
-//                        val message = java.lang.String(data, "UTF-8")
-//                        if ("chat" == dataConsumer.label) {
-//                            val peerList =
-//                        }
+                        val sctp = JSONObject(dataConsumer.sctpStreamParameters)
+                        Logger.w(TAG, "DataConsumer \"message\" event [streamId" + sctp.optInt("streamId") + "]")
+                        val data = ByteArray(buffer.data.remaining())
+                        buffer.data.get(data)
+                        val message = java.lang.String(data, "UTF-8")
+                        if ("chat" == dataConsumer.label) {
+                            val peerList = mStore.getPeers() ?: emptyList()
+                            val sendingPeer: com.example.simplemediasoup.model.Peer = peerList.first { it.dataConsumers!!.contains(dataConsumer.id) }
+                            mStore.addNotify(sendingPeer.displayName + " says: ", message as String)
+                        }
                     } catch (e: Exception) {
-
+                        e.printStackTrace()
                     }
                 }
 
                 override fun OnTransportClose(dataConsumer: DataConsumer?) {
-                    TODO("Not yet implemented")
+
                 }
 
             }
+
+            val dataConsumer = mRecvTransport?.consumeData(listener, id, dataProducerId, streamId, label, protocol, appData)
+            mStore.addDataConsumer(peerId, dataConsumer!!)
+            handler.accept()
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -188,19 +219,29 @@ class RoomClient(
     }
 
     fun close() {
-        if (mClosed) {
-            return
-        }
+        if (mClosed) return
         mClosed = true
         mWorkHandler.post {
 
             // Close mProtoo Protoo
             if (mProtoo != null) {
-                mProtoo!!.close()
+                mProtoo?.close()
                 mProtoo = null
             }
 
             disposeTransportDevice()
+
+            mLocalAudioTrack?.let {
+                it.setEnabled(false)
+                it.dispose()
+            }
+
+            mLocalVideoTrack?.let {
+                it.setEnabled(false)
+                it.dispose()
+            }
+
+            mPeerConnectionUtils?.dispose()
 
             // quit worker handler thread.
             mWorkHandler.looper.quit()
@@ -215,21 +256,19 @@ class RoomClient(
         Logger.d(TAG, "disposeTransportDevice()")
         // Close mediasoup Transports.
         if (mSendTransport != null) {
-            mSendTransport!!.close()
-            mSendTransport!!.dispose()
+            mSendTransport?.close()
+            mSendTransport?.dispose()
             mSendTransport = null
         }
+
         if (mRecvTransport != null) {
-            mRecvTransport!!.close()
-            mRecvTransport!!.dispose()
+            mRecvTransport?.close()
+            mRecvTransport?.dispose()
             mRecvTransport = null
         }
 
         // dispose device.
-        if (mMediasoupDevice != null) {
-            mMediasoupDevice!!.dispose()
-            mMediasoupDevice = null
-        }
+        mMediasoupDevice.dispose()
     }
 
     @WorkerThread
@@ -237,44 +276,55 @@ class RoomClient(
         Logger.d(TAG, "joinImpl()")
 
         try {
-            mMediasoupDevice = Device()
             val routerRtpCapabilities = mProtoo?.syncRequest("getRouterRtpCapabilities")
-            mMediasoupDevice!!.load(routerRtpCapabilities!!, null)
-            val rtpCapabilities = mMediasoupDevice!!.rtpCapabilities
+            mMediasoupDevice.load(routerRtpCapabilities!!, null)
+            val rtpCapabilities = mMediasoupDevice.rtpCapabilities
 
             createSendTransport()
-//            createRecvTransport()
+            createRecvTransport()
 
-            val sctpCapabilities = mMediasoupDevice!!.sctpCapabilities
+            val sctpCapabilities = mMediasoupDevice.sctpCapabilities
 
             val req = JSONObject().apply {
-                put("displayName", displayName)
+                put("displayName", mDisplayName)
                 put("device", DeviceInfo.androidDevice().toJSONObject())
                 put("rtpCapabilities", toJsonObject(rtpCapabilities))
                 put("sctpCapabilities", sctpCapabilities)
             }
 
             val joinResponse = mProtoo?.syncRequest("join", req)
+
+            val jsonMe = JSONObject().apply {
+                put("id", mPeerId)
+                put("displayName", mDisplayName)
+                put("device", DeviceInfo.androidDevice().toJSONObject())
+            }
+            mStore.addPeer(mPeerId, jsonMe)
+
             val resp = toJsonObject(joinResponse)
             val peers = resp.optJSONArray("peers")
             run {
                 var i = 0
                 while (peers != null && i < peers.length()) {
                     val peer: JSONObject = peers.getJSONObject(i)
-                    persenter.addPeer(peer.optString("id"), peer)
+                    mStore.addPeer(peer.optString("id"), peer)
                     i++
                 }
             }
 
+            mMainHandler.post(this::enableCam)
+            mMainHandler.post(this::enableMic)
+
         } catch (e: Exception) {
             e.printStackTrace()
+            mMainHandler.post { close() }
         }
     }
 
     private fun createRecvTransport() {
         Logger.d(TAG, "createRecvTransport()")
 
-        val sctpCapabilities = mMediasoupDevice?.sctpCapabilities
+        val sctpCapabilities = mMediasoupDevice.sctpCapabilities
         val req = JSONObject().apply {
             put("forceTcp", false)
             put("producing", false)
@@ -282,7 +332,7 @@ class RoomClient(
             put("sctpCapabilities", sctpCapabilities)
         }
         val resp = mProtoo?.syncRequest("createWebRtcTransport", req)
-        val info  = resp?.let { JSONObject(it) }
+        val info = resp?.let { JSONObject(it) }
         Logger.d(TAG, "device#createRecvTransport() $info")
         val id = info!!.optString("id")
         val iceParameters = info.optString("iceParameters")
@@ -290,7 +340,7 @@ class RoomClient(
         val dtlsParameters = info.optString("dtlsParameters")
         val sctpParameters = info.optString("sctpParameters")
 
-        mRecvTransport = mMediasoupDevice!!.createRecvTransport(
+        mRecvTransport = mMediasoupDevice.createRecvTransport(
             recvTransportListener,
             id,
             iceParameters,
@@ -303,7 +353,7 @@ class RoomClient(
     @WorkerThread
     fun createSendTransport() {
         Logger.d(TAG, "createSendTransport()")
-        val sctpCapabilities = mMediasoupDevice?.sctpCapabilities
+        val sctpCapabilities = mMediasoupDevice.sctpCapabilities
         val req = JSONObject().apply {
             put("forceTcp", false)
             put("producing", true)
@@ -320,7 +370,7 @@ class RoomClient(
         val dtlsParameters = info.optString("dtlsParameters")
         val sctpParameters = info.optString("sctpParameters")
 
-        mSendTransport = mMediasoupDevice?.createSendTransport(
+        mSendTransport = mMediasoupDevice.createSendTransport(
             sendTransportListener,
             id,
             iceParameters,
@@ -334,8 +384,6 @@ class RoomClient(
                 enableChatDataProducer()
             }
         }
-
-//        Toast.makeText(context, mSendTransport?.id, Toast.LENGTH_SHORT).show()
     }
 
     private val recvTransportListener = object : RecvTransport.Listener {
@@ -354,7 +402,13 @@ class RoomClient(
                     it
                         .subscribe(
                             { d -> Logger.d(listenerTAG, "connectWebRtcTransport res: $d") }
-                        ) { t -> Logger.e(TAG,"connectWebRtcTransport for mSendTransport failed", t) })
+                        ) { t ->
+                            Logger.e(
+                                TAG,
+                                "connectWebRtcTransport for mSendTransport failed",
+                                t
+                            )
+                        })
             }
         }
 
@@ -381,7 +435,13 @@ class RoomClient(
                     it
                         .subscribe(
                             { d -> Logger.d(listenerTAG, "connectWebRtcTransport res: $d") }
-                        ) { t -> Logger.e(TAG, "connectWebRtcTransport for mSendTransport failed", t) })
+                        ) { t ->
+                            Logger.e(
+                                TAG,
+                                "connectWebRtcTransport for mSendTransport failed",
+                                t
+                            )
+                        })
             }
         }
 
@@ -417,7 +477,7 @@ class RoomClient(
             protocol: String?,
             appData: String?
         ): String {
-            if (mClosed)  return ""
+            if (mClosed) return ""
             Logger.d(listenerTAG, "onProduceData()")
             val producerDataId = fetchProduceDataId { req ->
                 jsonPut(req, "transportId", transport!!.id)
@@ -456,18 +516,105 @@ class RoomClient(
                     override fun onBufferedAmountChange(
                         dataProducer: DataProducer?,
                         sentDataSize: Long
-                    ) {}
+                    ) {
+                    }
 
                     override fun onTransportClose(dataProducer: DataProducer?) {
                         mChatDataProducer = null
                     }
 
                 }
-                mChatDataProducer = mSendTransport?.produceData(listener, "chat", "low" , false,1,0,"{\"info\":\"my-chat-DataProducer\"}")
+                mChatDataProducer = mSendTransport?.produceData(
+                    listener,
+                    "chat",
+                    "low",
+                    false,
+                    1,
+                    0,
+                    "{\"info\":\"my-chat-DataProducer\"}"
+                )
 
             } catch (e: Exception) {
                 Logger.e(TAG, "enableChatDataProducer() | Failed: ", e)
             }
+        }
+    }
+
+    private fun enableCam() {
+        Logger.d(TAG, "enableCam()")
+        mWorkHandler.post {
+            enableCamImpl()
+        }
+    }
+
+    private fun enableMic() {
+        mWorkHandler.post {
+            enableMicImpl()
+        }
+    }
+
+    @WorkerThread
+    private fun enableMicImpl() {
+        try {
+
+            if (mAudioProducer != null) {
+                return
+            }
+
+            if (mMediasoupDevice.isLoaded.not()) {
+                return
+            }
+
+            if (mMediasoupDevice.canProduce("audio").not()) {
+                return
+            }
+
+            if (mSendTransport == null) {
+                return
+            }
+
+            if (mLocalAudioTrack == null) {
+                mLocalAudioTrack = mPeerConnectionUtils?.createAudioTrack(mContext)
+                mLocalAudioTrack?.setEnabled(true)
+            }
+
+            mAudioProducer = mSendTransport!!.produce(null, mLocalAudioTrack, null, null, null)
+
+        } catch (e: MediasoupException) {
+            mLocalAudioTrack?.setEnabled(false)
+        }
+    }
+
+    @WorkerThread
+    private fun enableCamImpl() {
+        try {
+            if (mVideoProducer != null) {
+                return
+            }
+
+            if (mMediasoupDevice.isLoaded.not()) {
+                return
+            }
+
+            if (mMediasoupDevice.canProduce("video").not()) {
+                return
+            }
+
+            if (mSendTransport == null) {
+                return
+            }
+
+            if (mLocalVideoTrack == null) {
+                mLocalVideoTrack = mPeerConnectionUtils?.createVideoTrack(mContext)
+                mLocalVideoTrack?.setEnabled(true)
+                mLocalVideoTrack?.let { mStore.setLocalVideoTrack(it) }
+            }
+
+            mVideoProducer = mSendTransport!!.produce(null, mLocalVideoTrack, null, null, null)
+
+        } catch (e: MediasoupException) {
+            e.printStackTrace()
+            mLocalVideoTrack?.setEnabled(false)
         }
     }
 
@@ -479,7 +626,12 @@ class RoomClient(
             }
 
             try {
-                mChatDataProducer?.send(DataChannel.Buffer(ByteBuffer.wrap(txt.toByteArray()), false))
+                mChatDataProducer?.send(
+                    DataChannel.Buffer(
+                        ByteBuffer.wrap(txt.toByteArray()),
+                        false
+                    )
+                )
             } catch (e: Exception) {
                 Logger.e(TAG, "chat DataProducer.send() failed:", e)
             }

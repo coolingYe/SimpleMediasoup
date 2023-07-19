@@ -9,11 +9,9 @@ class PeerConnectionUtils {
 
     private var mThreadChecker: ThreadUtils.ThreadChecker = ThreadUtils.ThreadChecker()
     private var mPeerConnectionFactory: PeerConnectionFactory? = null
-    private val mAudioSource: AudioSource? = null
+    private var mAudioSource: AudioSource? = null
     private var mVideoSource: VideoSource? = null
     private var mVideoCapturer: VideoCapturer? = null
-
-    private val eglBase: EglBase = EglBase.create()
 
     companion object {
         private const val TAG = "PeerConnectionUtils"
@@ -23,6 +21,12 @@ class PeerConnectionUtils {
         private const val Width = 640
         private const val Height = 480
         private const val FPS = 30
+
+        private val eglBase: EglBase = EglBase.create()
+
+        fun getEglContext(): EglBase.Context {
+            return this.eglBase.eglBaseContext
+        }
     }
 
     private fun createPeerConnectionFactory(context: Context) {
@@ -96,5 +100,50 @@ class PeerConnectionUtils {
             }
         }
         return null
+    }
+
+    fun createAudioTrack(context: Context, id: String = AUDIO_TRACK_ID): AudioTrack? {
+        Logger.d(TAG, "createAudioTrack()")
+        mThreadChecker.checkIsOnValidThread()
+        if (mAudioSource == null) {
+            createAudioSource(context)
+        }
+
+        return mPeerConnectionFactory?.createAudioTrack(id, mAudioSource)
+    }
+
+    private fun createAudioSource(context: Context) {
+        Logger.d(TAG, "createAudioSource()")
+        mThreadChecker.checkIsOnValidThread()
+        if (mPeerConnectionFactory == null)  {
+            createPeerConnectionFactory(context)
+        }
+
+        mAudioSource = mPeerConnectionFactory?.createAudioSource(MediaConstraints())
+    }
+
+    fun dispose() {
+        mThreadChecker.checkIsOnValidThread()
+        mAudioSource?.let {
+            it.dispose()
+            mAudioSource = null
+        }
+
+        mVideoCapturer?.let {
+            it.dispose()
+            mVideoCapturer = null
+        }
+
+        mVideoSource?.let {
+            it.dispose()
+            mVideoSource = null
+        }
+
+        mPeerConnectionFactory?.let {
+            it.dispose()
+            mPeerConnectionFactory = null
+        }
+
+        eglBase.release()
     }
 }

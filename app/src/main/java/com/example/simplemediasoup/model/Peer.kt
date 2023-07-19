@@ -7,8 +7,8 @@ data class Peer(
     var id: String? = null,
     var displayName: String? = null,
     var device: DeviceInfo? = null,
-    var consumers: Set<String>? = null,
-    var dataConsumers: Set<String>? = null
+    var consumers: MutableSet<String>? = null,
+    var dataConsumers: MutableSet<String>? = null
 ) {
     fun get(info: JSONObject): Peer {
         id = info.optString("id")
@@ -22,7 +22,7 @@ data class Peer(
         } ?: {
             device = DeviceInfo.unknownDevice()
         }
-        consumers = HashSet()
+        consumers =  HashSet()
         dataConsumers = HashSet()
         return Peer(id, displayName, device, consumers, dataConsumers)
     }

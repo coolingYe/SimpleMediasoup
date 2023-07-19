@@ -1,6 +1,8 @@
 package com.example.simplemediasoup.model
 
 import org.json.JSONObject
+import org.mediasoup.droid.Consumer
+import org.mediasoup.droid.DataConsumer
 import java.util.*
 
 class Peers(
@@ -11,8 +13,23 @@ class Peers(
         peersInfo[peerId] = Peer().get(peerInfo)
     }
 
+    fun addDataConsumer(peerId: String, consumer: DataConsumer) {
+        val peer = getPeer(peerId)
+        peer?.dataConsumers?.add(consumer.id)
+    }
+
+    fun addConsumer(peerId: String, consumer: Consumer) {
+        val peer = getPeer(peerId)
+        peer?.consumers?.add(consumer.id)
+    }
+
     fun removePeer(peerId: String) {
         peersInfo.remove(peerId)
+    }
+
+    fun removeDataConsumer(peerId: String, consumerId: String) {
+        val peer = getPeer(peerId)
+        peer?.dataConsumers?.remove(consumerId)
     }
 
     fun setPeerDisplayName(peerId: String, displayName: String) {
@@ -28,6 +45,10 @@ class Peers(
             peer.add(it.value)
         }
         return peer
+    }
+
+    fun getPeer(peerId: String?): Peer? {
+        return peersInfo[peerId]
     }
 
     fun clear() {
