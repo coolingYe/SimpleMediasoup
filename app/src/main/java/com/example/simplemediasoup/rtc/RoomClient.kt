@@ -6,6 +6,8 @@ import android.os.HandlerThread
 import android.os.Looper
 import androidx.annotation.WorkerThread
 import com.example.simplemediasoup.RoomStore
+import com.example.simplemediasoup.model.ConsumerHolder
+import com.example.simplemediasoup.model.DataConsumerHolder
 import com.example.simplemediasoup.service.WebSocketTransport
 import com.example.simplemediasoup.utils.DeviceInfo
 import com.example.simplemediasoup.utils.JsonUtils.jsonPut
@@ -55,6 +57,9 @@ class RoomClient(
     private var mLocalVideoTrack: VideoTrack? = null
     private var mLocalAudioTrack: AudioTrack? = null
 
+    private var mConsumers: MutableMap<String, ConsumerHolder>? = null
+    private var mDataConsumers: MutableMap<String, DataConsumerHolder>? = null
+
     private val mCompositeDisposable = CompositeDisposable()
 
     enum class ConnectionState {
@@ -83,6 +88,77 @@ class RoomClient(
             mProtoo =
                 Protoo(transport, peerListener)
         }
+    }
+
+    fun enableMicrophone() {
+        mWorkHandler.post {
+            try {
+                if (mAudioProducer != null) {
+                    return@post
+                }
+
+                if (mMediasoupDevice.isLoaded.not()) {
+                    return@post
+                }
+
+                if (mMediasoupDevice.canProduce("audio").not()) {
+                    return@post
+                }
+
+                if (mSendTransport == null) {
+                    return@post
+                }
+
+                if (mLocalAudioTrack == null) {
+                    mLocalAudioTrack = mPeerConnectionUtils?.createAudioTrack(mContext)
+                    mLocalVideoTrack?.setEnabled(true)
+                }
+
+                mAudioProducer = mSendTransport?.produce(
+                    {
+                        if (mAudioProducer != null) {
+                            mAudioProducer = null
+                        }
+                    },
+                    mLocalAudioTrack,
+                    null,null,null
+                )
+                mStore
+
+            } catch (e: MediasoupException) {
+                e.printStackTrace()
+                mLocalVideoTrack?.setEnabled(false)
+            }
+        }
+    }
+
+    fun disableMicrophone() {
+        mWorkHandler.post {
+            if (mAudioProducer == null) {
+                return@post
+            }
+
+        }
+    }
+
+    fun muteMicrophone() {
+
+    }
+
+    fun unMuteMicrophone() {
+
+    }
+
+    fun enableCamera() {
+
+    }
+
+    fun disableCamera() {
+
+    }
+
+    fun switchCamera() {
+
     }
 
     private val peerListener = object : Peer.Listener {
@@ -118,7 +194,10 @@ class RoomClient(
         }
 
         override fun onNotification(notification: Message.Notification) {
-            Logger.d(TAG, "onNotification() " + notification.method + ", " + notification.data.toString())
+            Logger.d(
+                TAG,
+                "onNotification() " + notification.method + ", " + notification.data.toString()
+            )
         }
 
         override fun onDisconnected() {
@@ -149,8 +228,10 @@ class RoomClient(
             val appData = data.optString("appData")
             val producerPaused = data.optBoolean("producerPaused")
 
-            val consumer = mRecvTransport?.consume(null, id, producerId, kind, rtpParameters, appData)
-
+            val consumer = mRecvTransport?.consume({
+                mConsumers?.remove(it.id)
+            }, id, producerId, kind, rtpParameters, appData)
+            mConsumers?.put(consumer!!.id, ConsumerHolder(peerId, consumer))
             mStore.addConsumer(peerId, type, consumer!!, producerPaused)
             handler.accept()
 
@@ -183,19 +264,23 @@ class RoomClient(
                 }
 
                 override fun OnClose(dataConsumer: DataConsumer?) {
-
+                    mDataConsumers?.remove(dataConsumer!!.id)
                 }
 
                 override fun OnMessage(dataConsumer: DataConsumer, buffer: DataChannel.Buffer) {
                     try {
                         val sctp = JSONObject(dataConsumer.sctpStreamParameters)
-                        Logger.w(TAG, "DataConsumer \"message\" event [streamId" + sctp.optInt("streamId") + "]")
+                        Logger.w(
+                            TAG,
+                            "DataConsumer \"message\" event [streamId" + sctp.optInt("streamId") + "]"
+                        )
                         val data = ByteArray(buffer.data.remaining())
                         buffer.data.get(data)
                         val message = java.lang.String(data, "UTF-8")
                         if ("chat" == dataConsumer.label) {
                             val peerList = mStore.getPeers() ?: emptyList()
-                            val sendingPeer: com.example.simplemediasoup.model.Peer = peerList.first { it.dataConsumers!!.contains(dataConsumer.id) }
+                            val sendingPeer: com.example.simplemediasoup.model.Peer =
+                                peerList.first { it.dataConsumers!!.contains(dataConsumer.id) }
                             mStore.addNotify(sendingPeer.displayName + " says: ", message as String)
                         }
                     } catch (e: Exception) {
@@ -209,7 +294,16 @@ class RoomClient(
 
             }
 
-            val dataConsumer = mRecvTransport?.consumeData(listener, id, dataProducerId, streamId, label, protocol, appData)
+            val dataConsumer = mRecvTransport?.consumeData(
+                listener,
+                id,
+                dataProducerId,
+                streamId,
+                label,
+                protocol,
+                appData
+            )
+            mDataConsumers?.put(dataConsumer!!.id, DataConsumerHolder(peerId, dataConsumer))
             mStore.addDataConsumer(peerId, dataConsumer!!)
             handler.accept()
 

@@ -73,7 +73,12 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
         roomStore.localVideoTrack.observe(this) {
             if (it == null) return@observe
-            roomAdapter.setVideoTrack(it)
+            roomAdapter.setLocalVideoTrack(it)
+        }
+
+        roomStore.consumers.observe(this) {
+            if (it == null) return@observe
+            roomAdapter.setConsumers(it)
         }
 
         roomStore.notify.observe(this) {
@@ -112,6 +117,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
         with(binding.rvMeetingVideo) {
             layoutManager = LinearLayoutManager(this@RoomActivity, RecyclerView.VERTICAL, false)
         }
+        roomAdapter.setHasStableIds(true)
         binding.rvMeetingVideo.adapter = roomAdapter
     }
 

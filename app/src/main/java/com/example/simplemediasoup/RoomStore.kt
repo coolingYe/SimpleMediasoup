@@ -2,13 +2,12 @@ package com.example.simplemediasoup
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.simplemediasoup.model.Notify
-import com.example.simplemediasoup.model.Peer
-import com.example.simplemediasoup.model.Peers
-import com.example.simplemediasoup.model.RoomInfo
+import com.example.simplemediasoup.model.*
+import org.json.JSONArray
 import org.json.JSONObject
 import org.mediasoup.droid.Consumer
 import org.mediasoup.droid.DataConsumer
+import org.mediasoup.droid.Producer
 import org.webrtc.VideoTrack
 
 class RoomStore: ViewModel() {
@@ -22,6 +21,18 @@ class RoomStore: ViewModel() {
     val peers: MutableLiveData<Peers> by lazy {
         MutableLiveData<Peers>().also {
             it.value = Peers()
+        }
+    }
+
+    val consumers: MutableLiveData<Consumers> by lazy {
+        MutableLiveData<Consumers>().also {
+            it.value = Consumers()
+        }
+    }
+
+    val producers: MutableLiveData<Producers> by lazy {
+        MutableLiveData<Producers>().also {
+            it.value = Producers()
         }
     }
 
@@ -53,6 +64,41 @@ class RoomStore: ViewModel() {
         peers.postValue(value)
     }
 
+    fun addProducer(producer: Producer) {
+        val producerValue = producers.value?.apply {
+            this.addProducer(producer)
+        }
+        producers.postValue(producerValue)
+    }
+
+    fun setProducerPaused(producerId: String) {
+        val producerValue = producers.value?.apply {
+            this.setProducerPaused(producerId)
+        }
+        producers.postValue(producerValue)
+    }
+
+    fun setProducerResumed(producerId: String) {
+        val producerValue = producers.value?.apply {
+            this.setProducerResumed(producerId)
+        }
+        producers.postValue(producerValue)
+    }
+
+    fun removeProducer(producerId: String) {
+        val producerValue = producers.value?.apply {
+            this.removeProducer(producerId)
+        }
+        producers.postValue(producerValue)
+    }
+
+    fun setProducerScore(producerId: String, score: JSONArray) {
+        val producerValue = producers.value?.apply {
+            this.setProducerScore(producerId, score)
+        }
+        producers.postValue(producerValue)
+    }
+
     fun addDataConsumer(peerId: String, dataConsumer: DataConsumer) {
         val value = peers.value
         value?.addDataConsumer(peerId, dataConsumer)
@@ -67,6 +113,15 @@ class RoomStore: ViewModel() {
         peers.value?.removePeer(peerId)
     }
 
+    fun removeConsumer(peerId: String, consumerId: String) {
+        val consumersValue = consumers.value
+        consumersValue?.removeConsumer(consumerId)
+        consumers.postValue(consumersValue)
+        val peerValue = peers.value
+        peerValue?.removeConsumer(peerId, consumerId)
+        peers.postValue(peerValue)
+    }
+
     fun getPeers(): List<Peer>? {
        return peers.value?.getAllPeer()
     }
@@ -76,6 +131,9 @@ class RoomStore: ViewModel() {
     }
 
     fun addConsumer(peerId: String, type: String, consumer: Consumer, remotelyPaused: Boolean) {
+        val consumerValue = consumers.value
+        consumerValue?.addConsumer(type, consumer, remotelyPaused)
+        consumers.postValue(consumerValue)
         val value = peers.value
         value?.addConsumer(peerId, consumer)
         peers.postValue(value)

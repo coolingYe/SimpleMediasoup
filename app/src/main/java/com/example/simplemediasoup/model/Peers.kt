@@ -27,6 +27,11 @@ class Peers(
         peersInfo.remove(peerId)
     }
 
+    fun removeConsumer(peerId: String, consumerId: String) {
+        val peer = getPeer(peerId)
+        peer?.consumers?.remove(consumerId)
+    }
+
     fun removeDataConsumer(peerId: String, consumerId: String) {
         val peer = getPeer(peerId)
         peer?.dataConsumers?.remove(consumerId)

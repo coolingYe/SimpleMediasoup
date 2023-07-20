@@ -8,13 +8,16 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.example.simplemediasoup.R
+import com.example.simplemediasoup.model.Consumers
 import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.PeerConnectionUtils
 import org.webrtc.VideoTrack
 
-class RoomAdapter(private var peerData:List<Peer> = emptyList()) : RecyclerView.Adapter<RoomAdapter.ContactHolder>() {
+class RoomAdapter(private var peerData: List<Peer> = emptyList()) :
+    RecyclerView.Adapter<RoomAdapter.ContactHolder>() {
 
-    private var videoTrack: VideoTrack? = null
+    private var mLocalVideoTrack: VideoTrack? = null
+    private var mConsumers: Consumers? = null
 
     class ContactHolder(itemView: View?) : RecyclerView.ViewHolder(itemView!!) {
         val displayName: TextView = itemView?.findViewById(R.id.tv_consume_name)!!
@@ -23,7 +26,9 @@ class RoomAdapter(private var peerData:List<Peer> = emptyList()) : RecyclerView.
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContactHolder {
-        return ContactHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_player_layout, parent, false))
+        return ContactHolder(
+            LayoutInflater.from(parent.context).inflate(R.layout.item_player_layout, parent, false)
+        )
     }
 
     override fun getItemCount() = peerData.size
@@ -31,14 +36,31 @@ class RoomAdapter(private var peerData:List<Peer> = emptyList()) : RecyclerView.
     override fun onBindViewHolder(holder: ContactHolder, position: Int) {
         holder.displayName.text = peerData[position].displayName
         if (position == 0) {
-            videoTrack?.let {
+            mLocalVideoTrack?.let {
                 if (holder.player.isVisible.not()) {
                     holder.player.isVisible = true
-                    holder.player.init(PeerConnectionUtils.getEglContext(),null)
+                    holder.player.init(PeerConnectionUtils.getEglContext(), null)
                 }
                 it.addSink(holder.player)
             }
+        } else {
+            mConsumers?.let { consumer ->
+                peerData[position].consumers?.forEach { consumerId ->
+                    val targetConsumer =  consumer.getConsumer(consumerId)?.mConsumer
+                    if (targetConsumer?.kind?.contains("video") == true) {
+                        if (holder.player.isVisible.not()) {
+                            holder.player.isVisible = true
+                            holder.player.init(PeerConnectionUtils.getEglContext(), null)
+                        }
+                        (targetConsumer.track as VideoTrack).addSink(holder.player)
+                    }
+                }
+            }
         }
+    }
+
+    override fun getItemId(position: Int): Long {
+        return peerData[position].hashCode().toLong()
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -48,8 +70,14 @@ class RoomAdapter(private var peerData:List<Peer> = emptyList()) : RecyclerView.
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    fun setVideoTrack(videoTrack: VideoTrack) {
-        this.videoTrack = videoTrack
+    fun setLocalVideoTrack(videoTrack: VideoTrack) {
+        this.mLocalVideoTrack = videoTrack
+        notifyDataSetChanged()
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun setConsumers(consumers: Consumers) {
+        this.mConsumers = consumers
         notifyDataSetChanged()
     }
 }

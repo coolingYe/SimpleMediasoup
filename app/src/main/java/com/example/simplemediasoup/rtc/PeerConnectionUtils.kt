@@ -1,9 +1,12 @@
 package com.example.simplemediasoup.rtc
 
 import android.content.Context
+import android.text.TextUtils
 import androidx.annotation.MainThread
 import org.mediasoup.droid.Logger
 import org.webrtc.*
+import org.webrtc.CameraVideoCapturer.CameraEventsHandler
+import org.webrtc.CameraVideoCapturer.CameraSwitchHandler
 
 class PeerConnectionUtils {
 
@@ -11,7 +14,8 @@ class PeerConnectionUtils {
     private var mPeerConnectionFactory: PeerConnectionFactory? = null
     private var mAudioSource: AudioSource? = null
     private var mVideoSource: VideoSource? = null
-    private var mVideoCapturer: VideoCapturer? = null
+    private var mVideoCapturer: CameraVideoCapturer? = null
+    private var mIsFrontCamera: Boolean = true
 
     companion object {
         private const val TAG = "PeerConnectionUtils"
@@ -63,7 +67,7 @@ class PeerConnectionUtils {
         }
 
         if (mVideoCapturer == null) {
-            mVideoCapturer = createVideoCapture(context)
+            createVideoCapture(context)
         }
 
         mVideoSource = mPeerConnectionFactory?.createVideoSource(false)
@@ -72,34 +76,64 @@ class PeerConnectionUtils {
         mVideoCapturer?.startCapture(Width, Height, FPS)
     }
 
-    private fun createVideoCapture(context: Context): VideoCapturer? {
-        return if (Camera2Enumerator.isSupported(context)) {
-            createCameraCapture(Camera2Enumerator(context))
-        } else {
-            createCameraCapture(Camera1Enumerator(true))
-        }
+    fun setIsFrontCamera(isFrontCamera: Boolean) {
+        this.mIsFrontCamera = isFrontCamera
     }
 
-    private fun createCameraCapture(enumerator: CameraEnumerator): VideoCapturer? {
-        val deviceNames = enumerator.deviceNames
+    private fun createVideoCapture(context: Context) {
+        Logger.d(TAG, "createCamCapture()")
+        mThreadChecker.checkIsOnValidThread()
+        val isCamera2Supported = Camera2Enumerator.isSupported(context)
+        val cameraEnumerator: CameraEnumerator = if (isCamera2Supported) {
+            Camera2Enumerator(context)
+        } else {
+            Camera1Enumerator()
+        }
+        val deviceNames = cameraEnumerator.deviceNames
         for (deviceName in deviceNames) {
-            if (enumerator.isFrontFacing(deviceName)) {
-                val videoCapture: VideoCapturer? = enumerator.createCapturer(deviceName, null)
-                if (videoCapture != null) {
-                    return videoCapture
+            val needFrontFacing: Boolean = mIsFrontCamera
+            var selectedDeviceName: String? = null
+            if (needFrontFacing) {
+                if (cameraEnumerator.isFrontFacing(deviceName)) {
+                    selectedDeviceName = deviceName
+                }
+            } else {
+                if (!cameraEnumerator.isFrontFacing(deviceName)) {
+                    selectedDeviceName = deviceName
                 }
             }
-        }
+            if (!TextUtils.isEmpty(selectedDeviceName)) {
+                mVideoCapturer = cameraEnumerator.createCapturer(
+                    selectedDeviceName,
+                    object : CameraEventsHandler {
+                        override fun onCameraError(s: String) {
+                            Logger.e(TAG, "onCameraError, $s")
+                        }
 
-        for (deviceName in deviceNames) {
-            if (!enumerator.isFrontFacing(deviceName)) {
-                val videoCapture: VideoCapturer? = enumerator.createCapturer(deviceName, null)
-                if (videoCapture != null) {
-                    return videoCapture
-                }
+                        override fun onCameraDisconnected() {
+                            Logger.w(TAG, "onCameraDisconnected")
+                        }
+
+                        override fun onCameraFreezed(s: String) {
+                            Logger.w(TAG, "onCameraFreezed, $s")
+                        }
+
+                        override fun onCameraOpening(s: String) {
+                            Logger.d(TAG, "onCameraOpening, $s")
+                        }
+
+                        override fun onFirstFrameAvailable() {
+                            Logger.d(TAG, "onFirstFrameAvailable")
+                        }
+
+                        override fun onCameraClosed() {
+                            Logger.d(TAG, "onCameraClosed")
+                        }
+                    })
+                break
             }
         }
-        return null
+        checkNotNull(mVideoCapturer) { "Failed to create Camera Capture" }
     }
 
     fun createAudioTrack(context: Context, id: String = AUDIO_TRACK_ID): AudioTrack? {
@@ -120,6 +154,11 @@ class PeerConnectionUtils {
         }
 
         mAudioSource = mPeerConnectionFactory?.createAudioSource(MediaConstraints())
+    }
+
+    fun switchCamera(switchHandler: CameraSwitchHandler) {
+        mThreadChecker.checkIsOnValidThread()
+        mVideoCapturer?.switchCamera(switchHandler)
     }
 
     fun dispose() {
