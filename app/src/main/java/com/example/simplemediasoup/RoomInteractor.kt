@@ -10,10 +10,6 @@ class RoomInteractor(private val roomStore: RoomStore) : RoomContract.Interactor
         roomStore.addPeer(peerId, peerInfo)
     }
 
-    override fun addAllPeer(peersMap: MutableMap<String, Peer>) {
-        roomStore.addAllPeer(peersMap)
-    }
-
     override fun setLocalVideoTrack(videoTrack: VideoTrack) {
         roomStore.localVideoTrack.postValue(videoTrack)
     }

@@ -21,6 +21,7 @@ import org.protoojs.droid.Message
 import org.protoojs.droid.Peer
 import org.protoojs.droid.ProtooException
 import org.webrtc.AudioTrack
+import org.webrtc.CameraVideoCapturer
 import org.webrtc.DataChannel
 import org.webrtc.VideoTrack
 import java.nio.ByteBuffer
@@ -90,7 +91,7 @@ class RoomClient(
         }
     }
 
-    fun enableMicrophone() {
+    private fun enableMicrophone() {
         mWorkHandler.post {
             try {
                 if (mAudioProducer != null) {
@@ -117,13 +118,14 @@ class RoomClient(
                 mAudioProducer = mSendTransport?.produce(
                     {
                         if (mAudioProducer != null) {
+                            mStore.removeProducer(mAudioProducer?.id!!)
                             mAudioProducer = null
                         }
                     },
                     mLocalAudioTrack,
-                    null,null,null
+                    null, null, null
                 )
-                mStore
+//                mStore.addProducer(mAudioProducer!!)
 
             } catch (e: MediasoupException) {
                 e.printStackTrace()
@@ -137,28 +139,126 @@ class RoomClient(
             if (mAudioProducer == null) {
                 return@post
             }
-
+            mAudioProducer?.close()
+            mStore.removeProducer(mAudioProducer?.id!!)
+            try {
+                val json = JSONObject().apply {
+                    put("producerId", mAudioProducer?.id)
+                }
+                mProtoo?.syncRequest("closeProducer", json)
+            } catch (e: ProtooException) {
+                e.printStackTrace()
+            }
+            mVideoProducer = null
         }
     }
 
     fun muteMicrophone() {
+        mWorkHandler.post {
+            mAudioProducer?.pause()
 
+            try {
+                val json = JSONObject().apply {
+                    put("producerId", mAudioProducer?.id)
+                }
+                mProtoo?.syncRequest("pauseProducer", json)
+                mStore.setProducerPaused(mAudioProducer?.id!!)
+            } catch (e: ProtooException) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun unMuteMicrophone() {
+        mWorkHandler.post {
+            mAudioProducer?.resume()
 
+            try {
+                val json = JSONObject().apply {
+                    put("resumeProducer", mAudioProducer?.id)
+                }
+                mProtoo?.syncRequest("resumeProducer", json)
+                mStore.setProducerResumed(mAudioProducer?.id!!)
+            } catch (e: ProtooException) {
+                e.printStackTrace()
+            }
+        }
     }
 
-    fun enableCamera() {
+    private fun enableCamera() {
+        mWorkHandler.post {
+            try {
+                if (mVideoProducer != null) {
+                    return@post
+                }
 
+                if (mMediasoupDevice.isLoaded.not()) {
+                    return@post
+                }
+
+                if (mMediasoupDevice.canProduce("video").not()) {
+                    return@post
+                }
+
+                if (mSendTransport == null) {
+                    return@post
+                }
+
+                if (mLocalVideoTrack == null) {
+                    mLocalVideoTrack = mPeerConnectionUtils?.createVideoTrack(mContext)
+                    mLocalVideoTrack?.setEnabled(true)
+                    mLocalVideoTrack?.let { mStore.setLocalVideoTrack(it) }
+                }
+
+                mVideoProducer = mSendTransport?.produce(
+                    {
+                        if (mVideoProducer != null) {
+                            mStore.removeProducer(mVideoProducer?.id!!)
+                            mVideoProducer = null
+                        }
+                    },
+                    mLocalVideoTrack, null, null, null
+                )
+//                mStore.addProducer(mVideoProducer!!)
+            } catch (e: MediasoupException) {
+                e.printStackTrace()
+                mLocalVideoTrack?.setEnabled(false)
+            }
+        }
     }
 
     fun disableCamera() {
+        mWorkHandler.post {
+            if (mVideoProducer == null) {
+                return@post
+            }
+            mVideoProducer?.close()
+            mStore.removeProducer(mVideoProducer?.id!!)
 
+            try {
+                val json = JSONObject().apply {
+                    put("producerId", mVideoProducer?.id)
+                }
+                mProtoo?.syncRequest("closeProducer", json)
+            } catch (e: ProtooException) {
+                e.printStackTrace()
+            }
+            mVideoProducer = null
+        }
     }
 
     fun switchCamera() {
+        mWorkHandler.post {
+            mPeerConnectionUtils?.switchCamera(object: CameraVideoCapturer.CameraSwitchHandler {
+                override fun onCameraSwitchDone(p0: Boolean) {
 
+                }
+
+                override fun onCameraSwitchError(p0: String?) {
+
+                }
+            })
+        }
     }
 
     private val peerListener = object : Peer.Listener {
@@ -194,10 +294,14 @@ class RoomClient(
         }
 
         override fun onNotification(notification: Message.Notification) {
-            Logger.d(
-                TAG,
-                "onNotification() " + notification.method + ", " + notification.data.toString()
-            )
+            Logger.d(TAG, "onNotification() " + notification.method + ", " + notification.data.toString())
+            mWorkHandler.post {
+                try {
+                    handleNotification(notification)
+                } catch (e: Exception) {
+                    Logger.e(TAG, "handleNotifiction error.", e)
+                }
+            }
         }
 
         override fun onDisconnected() {
@@ -214,6 +318,24 @@ class RoomClient(
             }
         }
 
+    }
+
+    fun handleNotification(notification: Message.Notification) {
+        val jsonData = notification.data
+        when(notification.method) {
+            "newPeer" -> {
+                val id = jsonData.getString("id")
+                val displayName = jsonData.optString("displayName")
+                mStore.addPeer(id, jsonData)
+                mStore.addNotify(text = displayName + "has joined room")
+            }
+            "peerClosed" -> {
+                val peerId = jsonData.getString("peerId")
+                val displayName = jsonData.optString("displayName")
+                mStore.removePeer(peerId)
+                mStore.addNotify(text = displayName + "has exited room")
+            }
+        }
     }
 
     private fun onNewConsumer(request: Message.Request, handler: Peer.ServerRequestHandler) {
@@ -406,8 +528,8 @@ class RoomClient(
                 }
             }
 
-            mMainHandler.post(this::enableCam)
-            mMainHandler.post(this::enableMic)
+            mMainHandler.post(this::enableMicrophone)
+            mMainHandler.post(this::enableCamera)
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -631,84 +753,6 @@ class RoomClient(
             } catch (e: Exception) {
                 Logger.e(TAG, "enableChatDataProducer() | Failed: ", e)
             }
-        }
-    }
-
-    private fun enableCam() {
-        Logger.d(TAG, "enableCam()")
-        mWorkHandler.post {
-            enableCamImpl()
-        }
-    }
-
-    private fun enableMic() {
-        mWorkHandler.post {
-            enableMicImpl()
-        }
-    }
-
-    @WorkerThread
-    private fun enableMicImpl() {
-        try {
-
-            if (mAudioProducer != null) {
-                return
-            }
-
-            if (mMediasoupDevice.isLoaded.not()) {
-                return
-            }
-
-            if (mMediasoupDevice.canProduce("audio").not()) {
-                return
-            }
-
-            if (mSendTransport == null) {
-                return
-            }
-
-            if (mLocalAudioTrack == null) {
-                mLocalAudioTrack = mPeerConnectionUtils?.createAudioTrack(mContext)
-                mLocalAudioTrack?.setEnabled(true)
-            }
-
-            mAudioProducer = mSendTransport!!.produce(null, mLocalAudioTrack, null, null, null)
-
-        } catch (e: MediasoupException) {
-            mLocalAudioTrack?.setEnabled(false)
-        }
-    }
-
-    @WorkerThread
-    private fun enableCamImpl() {
-        try {
-            if (mVideoProducer != null) {
-                return
-            }
-
-            if (mMediasoupDevice.isLoaded.not()) {
-                return
-            }
-
-            if (mMediasoupDevice.canProduce("video").not()) {
-                return
-            }
-
-            if (mSendTransport == null) {
-                return
-            }
-
-            if (mLocalVideoTrack == null) {
-                mLocalVideoTrack = mPeerConnectionUtils?.createVideoTrack(mContext)
-                mLocalVideoTrack?.setEnabled(true)
-                mLocalVideoTrack?.let { mStore.setLocalVideoTrack(it) }
-            }
-
-            mVideoProducer = mSendTransport!!.produce(null, mLocalVideoTrack, null, null, null)
-
-        } catch (e: MediasoupException) {
-            e.printStackTrace()
-            mLocalVideoTrack?.setEnabled(false)
         }
     }
 

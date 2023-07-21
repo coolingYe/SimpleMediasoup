@@ -10,7 +10,7 @@ import org.mediasoup.droid.DataConsumer
 import org.mediasoup.droid.Producer
 import org.webrtc.VideoTrack
 
-class RoomStore: ViewModel() {
+class RoomStore : ViewModel() {
 
     val roomInfo: MutableLiveData<RoomInfo> by lazy {
         MutableLiveData<RoomInfo>().also {
@@ -48,19 +48,24 @@ class RoomStore: ViewModel() {
         }
     }
 
-    val notify: MutableLiveData<Notify> by lazy { 
-        MutableLiveData<Notify>().also { 
+    val notify: MutableLiveData<Notify> by lazy {
+        MutableLiveData<Notify>().also {
             it.value = null
         }
     }
-    
-    fun addNotify(title: String, text:String) {
+
+    fun addNotify(title: String, text: String) {
         notify.postValue(Notify(title = title, text = text))
     }
 
+    fun addNotify(text: String) {
+        notify.postValue(Notify(text = text))
+    }
+
     fun addPeer(peerId: String, peerInfo: JSONObject) {
-        val value = peers.value
-        value?.addPeer(peerId, peerInfo)
+        val value = peers.value?.apply {
+            this.addPeer(peerId, peerInfo)
+        }
         peers.postValue(value)
     }
 
@@ -100,30 +105,32 @@ class RoomStore: ViewModel() {
     }
 
     fun addDataConsumer(peerId: String, dataConsumer: DataConsumer) {
-        val value = peers.value
-        value?.addDataConsumer(peerId, dataConsumer)
+        val value = peers.value?.apply {
+            this.addDataConsumer(peerId, dataConsumer)
+        }
         peers.postValue(value)
     }
 
-    fun addAllPeer(peersMap: MutableMap<String, Peer>) {
-        peers.postValue(Peers(peersMap))
-    }
-
     fun removePeer(peerId: String) {
-        peers.value?.removePeer(peerId)
+        val value = peers.value?.apply {
+            this.removePeer(peerId)
+        }
+        peers.postValue(value)
     }
 
     fun removeConsumer(peerId: String, consumerId: String) {
-        val consumersValue = consumers.value
-        consumersValue?.removeConsumer(consumerId)
+        val consumersValue = consumers.value?.apply {
+            this.removeConsumer(consumerId)
+        }
         consumers.postValue(consumersValue)
-        val peerValue = peers.value
-        peerValue?.removeConsumer(peerId, consumerId)
+        val peerValue = peers.value?.apply {
+            this.removeConsumer(peerId, consumerId)
+        }
         peers.postValue(peerValue)
     }
 
     fun getPeers(): List<Peer>? {
-       return peers.value?.getAllPeer()
+        return peers.value?.getAllPeer()
     }
 
     fun setLocalVideoTrack(videoTrack: VideoTrack) {
@@ -131,11 +138,13 @@ class RoomStore: ViewModel() {
     }
 
     fun addConsumer(peerId: String, type: String, consumer: Consumer, remotelyPaused: Boolean) {
-        val consumerValue = consumers.value
-        consumerValue?.addConsumer(type, consumer, remotelyPaused)
+        val consumerValue = consumers.value?.apply {
+            this.addConsumer(type, consumer, remotelyPaused)
+        }
         consumers.postValue(consumerValue)
-        val value = peers.value
-        value?.addConsumer(peerId, consumer)
+        val value = peers.value?.apply {
+            this.addConsumer(peerId, consumer)
+        }
         peers.postValue(value)
     }
 }

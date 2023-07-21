@@ -25,16 +25,16 @@ class RoomPresenter(
         roomClient?.sendChatMessage(message)
     }
 
+    override fun switchCamera() {
+        roomClient?.switchCamera()
+    }
+
     override fun close() {
         roomClient?.close()
     }
 
     fun addPeer(peerId: String, peerInfo: JSONObject) {
         mInteractor.addPeer(peerId, peerInfo)
-    }
-
-    fun addAllPeer(peersMap: MutableMap<String, Peer>) {
-        mInteractor.addAllPeer(peersMap)
     }
 
     fun setLocalVideoTrack(track: VideoTrack) {

@@ -3,8 +3,13 @@ package com.example.simplemediasoup
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.WindowInsets
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,6 +24,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
     private lateinit var binding: ActivityRoomBinding
     private lateinit var roomStore: RoomStore
     private val roomAdapter = RoomAdapter()
+    var handler: Handler = Handler(Looper.getMainLooper())
 
     private val mInteractor by lazy {
         RoomInteractor(roomStore)
@@ -45,7 +51,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
     private fun initListener() {
         binding.ivMeetingSwitchCamera.setOnClickListener {
-            //switch camera
+            mPresenter.switchCamera()
         }
 
         binding.tvMeetingTitle.setOnClickListener {
@@ -119,6 +125,18 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
         }
         roomAdapter.setHasStableIds(true)
         binding.rvMeetingVideo.adapter = roomAdapter
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemUI()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun hideSystemUI() {
+        window.decorView.windowInsetsController?.hide(WindowInsets.Type.statusBars())
+
     }
 
     override fun onDestroy() {

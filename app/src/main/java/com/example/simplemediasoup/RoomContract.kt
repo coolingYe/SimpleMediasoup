@@ -18,11 +18,11 @@ class RoomContract {
         fun getRoomClient(): RoomClient?
         fun sendMessage(message: String)
         fun close()
+        fun switchCamera()
     }
 
     interface Interactor {
         fun addPeer(peerId: String, peerInfo: JSONObject)
-        fun addAllPeer(peersMap: MutableMap<String, Peer>)
         fun setLocalVideoTrack(videoTrack: VideoTrack)
         fun getPeers(): List<Peer>
         fun getRoomViewModel(): RoomStore
