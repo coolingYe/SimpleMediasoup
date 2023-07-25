@@ -7,4 +7,6 @@
     <string name="share_content">Share Content</string>
     <string name="participants">Participants</string>
     <string name="more">More</string>
+    <string name="talk">Talk</string>
+    <string name="open_video">Open Video</string>
 </resources>

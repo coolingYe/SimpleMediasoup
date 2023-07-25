@@ -1,6 +1,7 @@
 package com.example.simplemediasoup
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -61,14 +62,46 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
         binding.btnMeetingEnd.setOnClickListener {
             finish()
         }
+
+        binding.tvMeetingAudio.setOnClickListener {
+            val audioPro = roomStore.producers.value?.filter("audio")?.mProducer
+            audioPro?.let {
+                mPresenter.setTextImageTopDrawable(R.drawable.ic_mic_off, binding.tvMeetingAudio)
+                binding.tvMeetingAudio.text = getString(R.string.talk)
+                mPresenter.disableMicrophone()
+
+            } ?: run {
+                mPresenter.setTextImageTopDrawable(R.drawable.ic_mic_on, binding.tvMeetingAudio)
+                binding.tvMeetingAudio.text = getString(R.string.mute)
+                mPresenter.enableMicrophone()
+            }
+        }
+
+        binding.tvMeetingVideo.setOnClickListener {
+            val videoPro = roomStore.producers.value?.filter("video")?.mProducer
+            videoPro?.let {
+                mPresenter.setTextImageTopDrawable(R.drawable.ic_webcam_off, binding.tvMeetingVideo)
+                binding.tvMeetingVideo.text = getString(R.string.open_video)
+                mPresenter.disableCamera()
+            } ?: run {
+                mPresenter.setTextImageTopDrawable(
+                    R.drawable.ic_webcam_on,
+                    binding.tvMeetingVideo
+                )
+                binding.tvMeetingVideo.text = getString(R.string.stop_video)
+                mPresenter.enableCamera()
+            }
+        }
     }
 
+
+    @SuppressLint("NotifyDataSetChanged")
     private fun initObserve() {
         roomStore.roomInfo.observe(this) {
 
         }
 
-        roomStore.me.observe(this) {
+        roomStore.self.observe(this) {
 
         }
 
@@ -78,8 +111,40 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
         }
 
         roomStore.localVideoTrack.observe(this) {
-            if (it == null) return@observe
+            if (it == null) {
+                roomAdapter.notifyDataSetChanged()
+                return@observe
+            }
             roomAdapter.setLocalVideoTrack(it)
+        }
+
+        roomStore.producers.observe(this) { producers ->
+            if (producers == null) return@observe
+//            val microphonePro =  producers.filter("audio")?.mProducer
+//            val cameraPro =  producers.filter("video")?.mProducer
+//            microphonePro?.let { producer ->
+//                when {
+//                    producer.isPaused -> {
+//                        binding.tvMeetingAudio.isEnabled = false
+//                        mPresenter.setTextImageTopDrawable(R.drawable.ic_mic_off, binding.tvMeetingAudio)
+//                    }
+//                    producer.isClosed -> {
+//                        binding.tvMeetingAudio.isEnabled = producer.isClosed
+//                    }
+//                }
+//            }
+//
+//            cameraPro?.let { producer ->
+//                when {
+//                    producer.isPaused -> {
+//                        binding.tvMeetingVideo.isEnabled = false
+//                        mPresenter.setTextImageTopDrawable(R.drawable.ic_mic_off, binding.tvMeetingAudio)
+//                    }
+//                    producer.isClosed -> {
+//                        binding.tvMeetingVideo.isEnabled = producer.isClosed
+//                    }
+//                }
+//            }
         }
 
         roomStore.consumers.observe(this) {
@@ -135,8 +200,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
     @RequiresApi(Build.VERSION_CODES.R)
     private fun hideSystemUI() {
-        window.decorView.windowInsetsController?.hide(WindowInsets.Type.statusBars())
-
+        window.decorView.windowInsetsController?.hide(WindowInsets.Type.navigationBars())
     }
 
     override fun onDestroy() {

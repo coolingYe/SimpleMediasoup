@@ -71,9 +71,8 @@ class RoomClient(
     }
 
     init {
-
         mProtooUrl = UrlFactory().getProtooUrl(mRoomId, mPeerId, forceH264, forceVP9)
-
+        mStore.setSelfInfo(mPeerId, mDisplayName, DeviceInfo.androidDevice())
         // init worker handler.
         val handlerThread = HandlerThread("worker")
         handlerThread.start()
@@ -91,7 +90,7 @@ class RoomClient(
         }
     }
 
-    private fun enableMicrophone() {
+    fun enableMicrophone() {
         mWorkHandler.post {
             try {
                 if (mAudioProducer != null) {
@@ -112,7 +111,7 @@ class RoomClient(
 
                 if (mLocalAudioTrack == null) {
                     mLocalAudioTrack = mPeerConnectionUtils?.createAudioTrack(mContext)
-                    mLocalVideoTrack?.setEnabled(true)
+                    mLocalAudioTrack?.setEnabled(true)
                 }
 
                 mAudioProducer = mSendTransport?.produce(
@@ -125,11 +124,11 @@ class RoomClient(
                     mLocalAudioTrack,
                     null, null, null
                 )
-//                mStore.addProducer(mAudioProducer!!)
+                mStore.addProducer(mAudioProducer!!)
 
             } catch (e: MediasoupException) {
                 e.printStackTrace()
-                mLocalVideoTrack?.setEnabled(false)
+                mLocalAudioTrack?.setEnabled(false)
             }
         }
     }
@@ -149,7 +148,7 @@ class RoomClient(
             } catch (e: ProtooException) {
                 e.printStackTrace()
             }
-            mVideoProducer = null
+            mAudioProducer = null
         }
     }
 
@@ -185,7 +184,8 @@ class RoomClient(
         }
     }
 
-    private fun enableCamera() {
+    fun enableCamera() {
+        mStore.setCamInProgress(true)
         mWorkHandler.post {
             try {
                 if (mVideoProducer != null) {
@@ -219,12 +219,13 @@ class RoomClient(
                     },
                     mLocalVideoTrack, null, null, null
                 )
-//                mStore.addProducer(mVideoProducer!!)
+                mStore.addProducer(mVideoProducer!!)
             } catch (e: MediasoupException) {
                 e.printStackTrace()
                 mLocalVideoTrack?.setEnabled(false)
             }
         }
+        mStore.setCamInProgress(false)
     }
 
     fun disableCamera() {
@@ -244,18 +245,24 @@ class RoomClient(
                 e.printStackTrace()
             }
             mVideoProducer = null
+            mLocalVideoTrack?.let {
+                it.setEnabled(false)
+                it.dispose()
+                mLocalVideoTrack = null
+            }
         }
     }
 
     fun switchCamera() {
+        mStore.setCamInProgress(true)
         mWorkHandler.post {
             mPeerConnectionUtils?.switchCamera(object: CameraVideoCapturer.CameraSwitchHandler {
                 override fun onCameraSwitchDone(p0: Boolean) {
-
+                    mStore.setCamInProgress(false)
                 }
 
                 override fun onCameraSwitchError(p0: String?) {
-
+                    mStore.setCamInProgress(false)
                 }
             })
         }
@@ -528,6 +535,9 @@ class RoomClient(
                 }
             }
 
+            val microphoneEnable = mMediasoupDevice.canProduce("audio")
+            val cameraEnable = mMediasoupDevice.canProduce("video")
+            mStore.setMediaCapabilities(microphoneEnable, cameraEnable)
             mMainHandler.post(this::enableMicrophone)
             mMainHandler.post(this::enableCamera)
 

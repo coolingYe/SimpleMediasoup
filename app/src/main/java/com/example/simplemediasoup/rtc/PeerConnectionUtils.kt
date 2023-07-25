@@ -93,7 +93,7 @@ class PeerConnectionUtils {
         for (deviceName in deviceNames) {
             val needFrontFacing: Boolean = mIsFrontCamera
             var selectedDeviceName: String? = null
-            if (needFrontFacing) {
+            if (false) {
                 if (cameraEnumerator.isFrontFacing(deviceName)) {
                     selectedDeviceName = deviceName
                 }

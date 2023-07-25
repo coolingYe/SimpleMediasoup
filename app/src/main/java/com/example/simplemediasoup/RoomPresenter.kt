@@ -1,7 +1,10 @@
 package com.example.simplemediasoup
 
+import android.annotation.SuppressLint
+import android.widget.TextView
 import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.RoomClient
+import com.example.simplemediasoup.utils.Utils.getRandomString
 import org.json.JSONObject
 import org.webrtc.VideoTrack
 
@@ -10,27 +13,29 @@ class RoomPresenter(
     private val mInteractor: RoomInteractor
 ) : RoomContract.Presenter {
 
-    private var roomClient: RoomClient? = null
+    private var mRoomClient: RoomClient? = null
 
     override fun createRTC() {
         mView.initViews()
-        val roomClient = RoomClient(mView.getContext(), mInteractor.getRoomViewModel(),"happyroom", "be5ln5de", forceH264 = false, forceVP9 = false)
-        this.roomClient = roomClient
+        val roomId = "happyroom"
+        val peerId = getRandomString(8)
+        val roomClient = RoomClient(mView.getContext(), mInteractor.getRoomViewModel(), roomId, peerId, forceH264 = false, forceVP9 = false)
+        this.mRoomClient = roomClient
         roomClient.join()
     }
 
-    override fun getRoomClient(): RoomClient? = roomClient
+    override fun getRoomClient(): RoomClient? = mRoomClient
 
     override fun sendMessage(message: String) {
-        roomClient?.sendChatMessage(message)
+        mRoomClient?.sendChatMessage(message)
     }
 
     override fun switchCamera() {
-        roomClient?.switchCamera()
+        mRoomClient?.switchCamera()
     }
 
     override fun close() {
-        roomClient?.close()
+        mRoomClient?.close()
     }
 
     fun addPeer(peerId: String, peerInfo: JSONObject) {
@@ -43,6 +48,28 @@ class RoomPresenter(
 
     fun getPeers(): List<Peer> {
         return mInteractor.getPeers()
+    }
+
+    override fun enableCamera() {
+        mRoomClient?.enableCamera()
+    }
+
+    override fun enableMicrophone() {
+        mRoomClient?.enableMicrophone()
+    }
+
+    override fun disableCamera() {
+        mRoomClient?.disableCamera()
+    }
+
+    override fun disableMicrophone() {
+        mRoomClient?.disableMicrophone()
+    }
+
+    @SuppressLint("UseCompatLoadingForDrawables")
+    override fun setTextImageTopDrawable(resourceId: Int, textView: TextView) {
+        val drawTop = mView.getContext().getDrawable(resourceId)
+        textView.setCompoundDrawablesWithIntrinsicBounds(null, drawTop, null, null)
     }
 
 }

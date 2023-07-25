@@ -3,6 +3,7 @@ package com.example.simplemediasoup
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.simplemediasoup.model.*
+import com.example.simplemediasoup.utils.DeviceInfo
 import org.json.JSONArray
 import org.json.JSONObject
 import org.mediasoup.droid.Consumer
@@ -36,9 +37,9 @@ class RoomStore : ViewModel() {
         }
     }
 
-    val me: MutableLiveData<Peer> by lazy {
-        MutableLiveData<Peer>().also {
-            it.value = Peer()
+    val self: MutableLiveData<Self> by lazy {
+        MutableLiveData<Self>().also {
+            it.value = Self()
         }
     }
 
@@ -109,6 +110,58 @@ class RoomStore : ViewModel() {
             this.addDataConsumer(peerId, dataConsumer)
         }
         peers.postValue(value)
+    }
+
+    fun setSelfInfo(peerId: String, displayName: String, deviceInfo: DeviceInfo) {
+        val selfInfo = self.value?.apply {
+            mId = peerId
+            mDisplayName = displayName
+            mDevice = deviceInfo
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setMediaCapabilities(microphoneEnable: Boolean, cameraEnable: Boolean) {
+        val selfInfo = self.value?.apply {
+            mMicrophoneEnable = microphoneEnable
+            mCameraEnable = cameraEnable
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setAudioOnlyState(enable: Boolean) {
+        val selfInfo = self.value?.apply {
+            mAudioOnly = enable
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setAudioOnlyInProgress(enable: Boolean) {
+        val selfInfo = self.value?.apply {
+            mAudioOnlyInProgress = enable
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setAudioMutedState(enable: Boolean) {
+        val selfInfo = self.value?.apply {
+            mAudioMuted = enable
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setRestartIceInProgress(restartIceInProgress: Boolean) {
+        val selfInfo = self.value?.apply {
+            mRestartIceInProgress = restartIceInProgress
+        }
+        self.postValue(selfInfo)
+    }
+
+    fun setCamInProgress(inProgress: Boolean) {
+        val selfInfo = self.value?.apply {
+            mCamInProgress = inProgress
+        }
+        self.postValue(selfInfo)
     }
 
     fun removePeer(peerId: String) {

@@ -37,16 +37,18 @@ class RoomAdapter(private var peerData: List<Peer> = emptyList()) :
         holder.displayName.text = peerData[position].displayName
         if (position == 0) {
             mLocalVideoTrack?.let {
-                if (holder.player.isVisible.not()) {
-                    holder.player.isVisible = true
-                    holder.player.init(PeerConnectionUtils.getEglContext(), null)
-                }
-                it.addSink(holder.player)
+                if (it.enabled()) {
+                    if (holder.player.isVisible.not()) {
+                        holder.player.isVisible = true
+                        holder.player.init(PeerConnectionUtils.getEglContext(), null)
+                    }
+                    it.addSink(holder.player)
+                } else holder.player.isVisible = false
             }
         } else {
             mConsumers?.let { consumer ->
                 peerData[position].consumers?.forEach { consumerId ->
-                    val targetConsumer =  consumer.getConsumer(consumerId)?.mConsumer
+                    val targetConsumer = consumer.getConsumer(consumerId)?.mConsumer
                     if (targetConsumer?.kind?.contains("video") == true) {
                         if (holder.player.isVisible.not()) {
                             holder.player.isVisible = true

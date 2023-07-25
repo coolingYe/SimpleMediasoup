@@ -1,6 +1,7 @@
 package com.example.simplemediasoup
 
 import android.content.Context
+import android.widget.TextView
 import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.RoomClient
 import org.json.JSONObject
@@ -19,6 +20,11 @@ class RoomContract {
         fun sendMessage(message: String)
         fun close()
         fun switchCamera()
+        fun disableCamera()
+        fun disableMicrophone()
+        fun setTextImageTopDrawable(resourceId: Int, textView: TextView)
+        fun enableMicrophone()
+        fun enableCamera()
     }
 
     interface Interactor {

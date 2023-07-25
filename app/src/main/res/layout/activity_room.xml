@@ -80,7 +80,7 @@
                 android:gravity="center"
                 android:text="@string/mute"
                 android:textColor="@color/white"
-                app:drawableTopCompat="@drawable/ic_mic" />
+                app:drawableTopCompat="@drawable/ic_mic_on" />
 
             <TextView
                 android:id="@+id/tv_meeting_video"
@@ -91,7 +91,7 @@
                 android:gravity="center"
                 android:text="@string/stop_video"
                 android:textColor="@color/white"
-                app:drawableTopCompat="@drawable/ic_webcam" />
+                app:drawableTopCompat="@drawable/ic_webcam_on" />
 
             <TextView
                 android:id="@+id/tv_meeting_share"
