@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -13,11 +14,12 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.example.simplemediasoup.adapter.CenterGridLayoutManager
 import com.example.simplemediasoup.adapter.RoomAdapter
 import com.example.simplemediasoup.databinding.ActivityRoomBinding
 import com.example.simplemediasoup.utils.Log
+import com.example.simplemediasoup.utils.RoomInfoDialog
+import com.example.simplemediasoup.utils.Utils
 import pub.devrel.easypermissions.EasyPermissions
 
 class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, RoomContract.View {
@@ -26,6 +28,9 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
     private lateinit var roomStore: RoomStore
     private val roomAdapter = RoomAdapter()
     var handler: Handler = Handler(Looper.getMainLooper())
+
+    private var displayName: String ?= null
+    private var cameraEnable: Boolean = true
 
     private val mInteractor by lazy {
         RoomInteractor(roomStore)
@@ -47,16 +52,24 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
 
     private fun initData() {
+        displayName = intent.getStringExtra("displayName") ?: Utils.getRandomString(8)
+        cameraEnable = intent.getBooleanExtra("cameraEnable", true)
         checkPermissions()
     }
 
     private fun initListener() {
+
+        binding.btnMeetingTest.setOnClickListener {
+
+        }
+
         binding.ivMeetingSwitchCamera.setOnClickListener {
             mPresenter.switchCamera()
         }
 
         binding.tvMeetingTitle.setOnClickListener {
-            //show meeting info
+            val roomInfoDialog = RoomInfoDialog(this)
+            roomInfoDialog.show()
         }
 
         binding.btnMeetingEnd.setOnClickListener {
@@ -92,6 +105,16 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
                 mPresenter.enableCamera()
             }
         }
+
+        binding.tvChat.setOnClickListener {
+            supportFragmentManager.beginTransaction().replace(R.id.fl_fragment, ChatFragment())
+                .addToBackStack(null).commit()
+        }
+
+        binding.clMeetingParticipants.setOnClickListener {
+            //roomStore.peers
+            startActivity(Intent(this@RoomActivity, ParticipantsActivity::class.java))
+        }
     }
 
 
@@ -108,6 +131,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
         roomStore.peers.observe(this) {
             if (it.getAllPeer().isEmpty()) return@observe
             roomAdapter.updateList(it.getAllPeer())
+            binding.tvMeetingParticipantsValue.text = it.getAllPeer().size.toString()
         }
 
         roomStore.localVideoTrack.observe(this) {
@@ -169,13 +193,13 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
             Log.d("checkCameraPermissions", "No Camera Permissions")
             EasyPermissions.requestPermissions(this, "Please provide permissions", 1, *permissions)
         } else {
-            mPresenter.createRTC()
+            mPresenter.createRTC(displayName = displayName!!, cameraEnable = cameraEnable)
         }
     }
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
         Log.d(ContentValues.TAG, "Permission request successful")
-        mPresenter.createRTC()
+        mPresenter.createRTC(displayName = displayName!!, cameraEnable = cameraEnable)
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
@@ -186,7 +210,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
     override fun initViews() {
         with(binding.rvMeetingVideo) {
-            layoutManager = LinearLayoutManager(this@RoomActivity, RecyclerView.VERTICAL, false)
+            layoutManager = CenterGridLayoutManager(this@RoomActivity, 3)
         }
         roomAdapter.setHasStableIds(true)
         binding.rvMeetingVideo.adapter = roomAdapter

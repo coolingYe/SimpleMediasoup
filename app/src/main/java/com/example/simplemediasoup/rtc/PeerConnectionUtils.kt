@@ -22,9 +22,9 @@ class PeerConnectionUtils {
         private const val VIDEO_TRACK_ID = "Video1"
         private const val AUDIO_TRACK_ID = "Audio1"
 
-        private const val Width = 640
-        private const val Height = 480
-        private const val FPS = 30
+        private const val VIDEO_WIDTH = 640
+        private const val VIDEO_HEIGHT = 480
+        private const val VIDEO_FPS = 30
 
         private val eglBase: EglBase = EglBase.create()
 
@@ -73,7 +73,7 @@ class PeerConnectionUtils {
         mVideoSource = mPeerConnectionFactory?.createVideoSource(false)
         val surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBase.eglBaseContext)
         mVideoCapturer?.initialize(surfaceTextureHelper, context, mVideoSource?.capturerObserver)
-        mVideoCapturer?.startCapture(Width, Height, FPS)
+        mVideoCapturer?.startCapture(VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS)
     }
 
     fun setIsFrontCamera(isFrontCamera: Boolean) {
@@ -182,7 +182,5 @@ class PeerConnectionUtils {
             it.dispose()
             mPeerConnectionFactory = null
         }
-
-        eglBase.release()
     }
 }

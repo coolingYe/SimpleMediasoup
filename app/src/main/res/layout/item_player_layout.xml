@@ -1,46 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="#243B55"
-    android:layout_margin="16dp">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#243B55">
 
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="fitCenter"
-        android:src="@drawable/buddy"/>
+        android:src="@drawable/buddy"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <org.webrtc.SurfaceViewRenderer
         android:id="@+id/player"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:visibility="gone"/>
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_consume_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:background="#66000000"
         android:paddingStart="10dp"
-        android:paddingEnd="10dp"
         android:paddingTop="5dp"
+        android:paddingEnd="10dp"
         android:paddingBottom="5dp"
         android:textColor="@color/white"
-        android:background="#66000000"
-        android:textSize="24sp"
-        tools:text="Bart Simpson"/>
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="Bart Simpson" />
 
     <View
         android:id="@+id/talking"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/shape_player_frame"
-        android:visibility="gone"/>
+        android:visibility="gone" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

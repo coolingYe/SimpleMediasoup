@@ -14,8 +14,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnConnect.setOnClickListener {
-            startActivity(Intent(this, RoomActivity::class.java))
+        binding.ivBarNewMeeting.setOnClickListener {
+            startActivity(Intent(this, NewMeetingGuideActivity::class.java))
+        }
+
+        binding.ivBarJoin.setOnClickListener {
+            startActivity(Intent(this, JoinGuideActivity::class.java))
         }
     }
 

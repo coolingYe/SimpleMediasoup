@@ -3,6 +3,7 @@ package com.example.simplemediasoup
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.simplemediasoup.model.*
+import com.example.simplemediasoup.rtc.RoomClient
 import com.example.simplemediasoup.utils.DeviceInfo
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,6 +13,14 @@ import org.mediasoup.droid.Producer
 import org.webrtc.VideoTrack
 
 class RoomStore : ViewModel() {
+
+    var roomClient: RoomClient ?= null
+
+    val chatInfo: MutableLiveData<ArrayList<Chat>> by lazy {
+        MutableLiveData<ArrayList<Chat>>().also {
+            it.value = ArrayList()
+        }
+    }
 
     val roomInfo: MutableLiveData<RoomInfo> by lazy {
         MutableLiveData<RoomInfo>().also {
@@ -53,6 +62,14 @@ class RoomStore : ViewModel() {
         MutableLiveData<Notify>().also {
             it.value = null
         }
+    }
+
+    fun setRoomUrl(roomId:String, url: String) {
+        val mRoomInfo = roomInfo.value?.apply {
+            mRoomId = roomId
+            mUrl = url
+        }
+        roomInfo.postValue(mRoomInfo)
     }
 
     fun addNotify(title: String, text: String) {

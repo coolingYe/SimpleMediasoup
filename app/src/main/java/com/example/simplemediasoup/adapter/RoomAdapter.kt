@@ -18,6 +18,7 @@ class RoomAdapter(private var peerData: List<Peer> = emptyList()) :
 
     private var mLocalVideoTrack: VideoTrack? = null
     private var mConsumers: Consumers? = null
+    private lateinit var mRecyclerView: RecyclerView
 
     class ContactHolder(itemView: View?) : RecyclerView.ViewHolder(itemView!!) {
         val displayName: TextView = itemView?.findViewById(R.id.tv_consume_name)!!
@@ -25,10 +26,15 @@ class RoomAdapter(private var peerData: List<Peer> = emptyList()) :
         val frame: View = itemView?.findViewById(R.id.talking)!!
     }
 
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.mRecyclerView = recyclerView
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContactHolder {
-        return ContactHolder(
-            LayoutInflater.from(parent.context).inflate(R.layout.item_player_layout, parent, false)
-        )
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_player_layout, parent, false)
+        view.layoutParams.height = mRecyclerView.width / 3
+        return ContactHolder(view)
     }
 
     override fun getItemCount() = peerData.size

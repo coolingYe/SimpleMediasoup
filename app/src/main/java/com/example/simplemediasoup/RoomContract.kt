@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.TextView
 import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.RoomClient
+import com.example.simplemediasoup.utils.Utils.getRandomString
 import org.json.JSONObject
 import org.webrtc.VideoTrack
 
@@ -15,7 +16,6 @@ class RoomContract {
     }
 
     interface Presenter {
-        fun createRTC()
         fun getRoomClient(): RoomClient?
         fun sendMessage(message: String)
         fun close()
@@ -25,6 +25,12 @@ class RoomContract {
         fun setTextImageTopDrawable(resourceId: Int, textView: TextView)
         fun enableMicrophone()
         fun enableCamera()
+        fun createRTC(roomId: String ="happyroom",
+                      peerId: String = getRandomString(8),
+                      displayName: String = getRandomString(8),
+                      microphoneEnable: Boolean = true,
+                      cameraEnable: Boolean = true
+        )
     }
 
     interface Interactor {

@@ -1,6 +1,7 @@
 package com.example.simplemediasoup
 
 import android.annotation.SuppressLint
+import android.view.Display
 import android.widget.TextView
 import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.RoomClient
@@ -15,11 +16,10 @@ class RoomPresenter(
 
     private var mRoomClient: RoomClient? = null
 
-    override fun createRTC() {
+    override fun createRTC(roomId: String, peerId: String, displayName: String, microphoneEnable: Boolean, cameraEnable: Boolean) {
         mView.initViews()
-        val roomId = "happyroom"
-        val peerId = getRandomString(8)
-        val roomClient = RoomClient(mView.getContext(), mInteractor.getRoomViewModel(), roomId, peerId, forceH264 = false, forceVP9 = false)
+        val roomClient = RoomClient(mView.getContext(), mInteractor.getRoomViewModel(), roomId, peerId, displayName, microphoneEnable, cameraEnable)
+        mInteractor.getRoomViewModel().roomClient = roomClient
         this.mRoomClient = roomClient
         roomClient.join()
     }

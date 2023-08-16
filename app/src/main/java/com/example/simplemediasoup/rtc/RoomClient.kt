@@ -6,6 +6,7 @@ import android.os.HandlerThread
 import android.os.Looper
 import androidx.annotation.WorkerThread
 import com.example.simplemediasoup.RoomStore
+import com.example.simplemediasoup.model.Chat
 import com.example.simplemediasoup.model.ConsumerHolder
 import com.example.simplemediasoup.model.DataConsumerHolder
 import com.example.simplemediasoup.service.WebSocketTransport
@@ -31,9 +32,11 @@ class RoomClient(
     private val mStore: RoomStore,
     mRoomId: String,
     private val mPeerId: String,
-    private val mDisplayName: String = "Dio",
-    forceH264: Boolean,
-    forceVP9: Boolean
+    private val mDisplayName: String,
+    private val mMicrophoneEnable: Boolean = true,
+    private val mCameraEnable: Boolean = true,
+    forceH264: Boolean = true,
+    forceVP9: Boolean = true
 ) {
 
     private val TAG = "RoomClient"
@@ -72,6 +75,7 @@ class RoomClient(
 
     init {
         mProtooUrl = UrlFactory().getProtooUrl(mRoomId, mPeerId, forceH264, forceVP9)
+        mStore.setRoomUrl(mRoomId, UrlFactory().getInvitationLink(mRoomId, forceH264, forceVP9))
         mStore.setSelfInfo(mPeerId, mDisplayName, DeviceInfo.androidDevice())
         // init worker handler.
         val handlerThread = HandlerThread("worker")
@@ -410,6 +414,11 @@ class RoomClient(
                             val peerList = mStore.getPeers() ?: emptyList()
                             val sendingPeer: com.example.simplemediasoup.model.Peer =
                                 peerList.first { it.dataConsumers!!.contains(dataConsumer.id) }
+                            Chat(sendingPeer.id,sendingPeer.displayName, message as String)
+                            val chatList = mStore.chatInfo.value?.apply {
+                                this.add(Chat(sendingPeer.id, sendingPeer.displayName, message as String))
+                            }
+                            mStore.chatInfo.postValue(chatList)
                             mStore.addNotify(sendingPeer.displayName + " says: ", message as String)
                         }
                     } catch (e: Exception) {
@@ -538,8 +547,12 @@ class RoomClient(
             val microphoneEnable = mMediasoupDevice.canProduce("audio")
             val cameraEnable = mMediasoupDevice.canProduce("video")
             mStore.setMediaCapabilities(microphoneEnable, cameraEnable)
-            mMainHandler.post(this::enableMicrophone)
-            mMainHandler.post(this::enableCamera)
+            if (mMicrophoneEnable) {
+                mMainHandler.post(this::enableMicrophone)
+            }
+            if (mCameraEnable) {
+                mMainHandler.post(this::enableCamera)
+            }
 
         } catch (e: Exception) {
             e.printStackTrace()
