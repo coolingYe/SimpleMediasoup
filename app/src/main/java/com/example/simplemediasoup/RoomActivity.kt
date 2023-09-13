@@ -4,11 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.WindowInsets
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -27,7 +24,6 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
     private lateinit var binding: ActivityRoomBinding
     private lateinit var roomStore: RoomStore
     private val roomAdapter = RoomAdapter()
-    var handler: Handler = Handler(Looper.getMainLooper())
 
     private var displayName: String ?= null
     private var cameraEnable: Boolean = true
@@ -94,14 +90,14 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
             val videoPro = roomStore.producers.value?.filter("video")?.mProducer
             videoPro?.let {
                 mPresenter.setTextImageTopDrawable(R.drawable.ic_webcam_off, binding.tvMeetingVideo)
-                binding.tvMeetingVideo.text = getString(R.string.open_video)
+                binding.tvMeetingVideo.text = getString(R.string.open_camera)
                 mPresenter.disableCamera()
             } ?: run {
                 mPresenter.setTextImageTopDrawable(
                     R.drawable.ic_webcam_on,
                     binding.tvMeetingVideo
                 )
-                binding.tvMeetingVideo.text = getString(R.string.stop_video)
+                binding.tvMeetingVideo.text = getString(R.string.stop_camera)
                 mPresenter.enableCamera()
             }
         }
@@ -113,7 +109,7 @@ class RoomActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, R
 
         binding.clMeetingParticipants.setOnClickListener {
             //roomStore.peers
-            startActivity(Intent(this@RoomActivity, ParticipantsActivity::class.java))
+            supportFragmentManager.beginTransaction().replace(R.id.fl_fragment, ParticipantFragment()).addToBackStack(null).commit()
         }
     }
 

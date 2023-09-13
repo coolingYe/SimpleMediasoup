@@ -346,6 +346,13 @@ class RoomClient(
                 mStore.removePeer(peerId)
                 mStore.addNotify(text = displayName + "has exited room")
             }
+            "consumerClosed" -> {
+                val consumerId = jsonData.getString("consumerId")
+                val holder: ConsumerHolder = mConsumers?.remove(consumerId) ?: return
+                holder.consumer?.close()
+                mConsumers?.remove(consumerId)
+                mStore.removeConsumer(holder.peerId!!, holder.consumer?.id!!)
+            }
         }
     }
 

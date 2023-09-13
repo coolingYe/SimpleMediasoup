@@ -13,8 +13,9 @@ import com.example.simplemediasoup.model.Peer
 import com.example.simplemediasoup.rtc.PeerConnectionUtils
 import org.webrtc.VideoTrack
 
-class RoomAdapter(private var peerData: List<Peer> = emptyList()) :
-    RecyclerView.Adapter<RoomAdapter.ContactHolder>() {
+class RoomAdapter(
+    private var peerData: List<Peer> = emptyList()
+) : RecyclerView.Adapter<RoomAdapter.ContactHolder>() {
 
     private var mLocalVideoTrack: VideoTrack? = null
     private var mConsumers: Consumers? = null

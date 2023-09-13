@@ -23,7 +23,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".RoomActivity" android:exported="false" android:theme="@style/FullScreen"/>
-        <activity android:name=".ParticipantsActivity" android:exported="false" android:theme="@style/FullScreen"/>
         <activity android:name=".NewMeetingGuideActivity" android:exported="false" android:theme="@style/FullScreen"/>
         <activity android:name=".JoinGuideActivity" android:exported="false" android:theme="@style/FullScreen"/>
     </application>

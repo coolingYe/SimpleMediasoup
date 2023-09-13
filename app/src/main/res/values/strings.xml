@@ -3,12 +3,11 @@
     <string name="meeting">Meeting</string>
     <string name="end">End</string>
     <string name="mute">Mute</string>
-    <string name="stop_video">Stop Video</string>
+    <string name="stop_camera">Stop Camera</string>
     <string name="share_content">Share Content</string>
     <string name="participants">Participants</string>
     <string name="more">More</string>
     <string name="talk">Talk</string>
-    <string name="open_video">Open Video</string>
     <string name="chat">Chat</string>
     <string name="cancel">Cancel</string>
     <string name="open_camera">Open Camera</string>

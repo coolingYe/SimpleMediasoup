@@ -109,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="center"
-                    android:text="@string/stop_video"
+                    android:text="@string/stop_camera"
                     android:textColor="@color/white"
                     app:drawableTopCompat="@drawable/ic_webcam_on" />
 
@@ -159,7 +159,6 @@
                         android:id="@+id/tv_meeting_participants_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="-25dp"
                         android:gravity="center"
                         android:textColor="@color/white"
                         android:textSize="9sp"

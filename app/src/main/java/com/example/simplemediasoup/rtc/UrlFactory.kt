@@ -6,7 +6,7 @@ class UrlFactory {
 
     companion object {
 //        private const val HOSTNAME = "v3demo.mediasoup.org"
-        private const val HOSTNAME = "192.168.1.57"
+        private const val HOSTNAME = "192.168.1.144"
         private const val PORT = 4443
     }
 
